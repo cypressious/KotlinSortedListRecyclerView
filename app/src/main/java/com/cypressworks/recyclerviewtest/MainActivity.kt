@@ -3,6 +3,7 @@ package com.cypressworks.recyclerviewtest
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.util.SortedList
+import android.support.v7.util.getUnderlyingArray
 import android.support.v7.widget.DefaultItemAnimator
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
@@ -18,6 +19,7 @@ import kotlinx.android.synthetic.activity_main.recyclerView
 import kotlinx.android.synthetic.item.view.date
 import kotlinx.android.synthetic.item.view.name
 import java.util.ArrayList
+import java.util.Arrays
 import java.util.Comparator
 import java.util.Random
 import kotlin.properties.Delegates
@@ -50,15 +52,13 @@ class MainActivity : AppCompatActivity() {
         buttonAlphabetical.setOnClickListener { resort(true) }
         buttonChronological.setOnClickListener { resort(false) }
 
-        for (i in 1..10000) {
+        for (i in 1..100) {
             add()
         }
     }
 
     fun add() {
-        var date = System.currentTimeMillis()
-        date -= date - (date % (3600 * 1000))
-        date = 10
+        var date = random.nextInt(3600).toLong()
 
         val name = (0..5)
                 .map { "${('A' + random.nextInt(25)).toChar()}" }
@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
             compareBy { it.name }
         } else {
             compareByDescending<Data> { it.date }
-                        .thenByDescending { it.name }
+                    .thenByDescending { it.name }
         }
     }
 }
@@ -102,75 +102,4 @@ class MyAdapter : RecyclerView.Adapter<MyAdapter.DataHolder>() {
 
 }
 
-class MyCallback(
-        adapter: MyAdapter,
-        comp: Comparator<Data>
-) : SortedListAdapterCallback<Data>(adapter) {
 
-    var list: SortedList<Data> by Delegates.notNull()
-
-    var comparator: Comparator<Data> by withListener(comp) {
-        resort()
-    }
-
-    private fun resort() = list.batched {
-        //        if (list.size() < 100) {
-        //            resortFew()
-        //        } else {
-        resortMany()
-        //        }
-    }
-
-    private fun resortMany() {
-        val copy = (list.size() - 1 downTo 0).map { list.removeItemAt(it) }
-        copy.forEach { list.add(it) }
-    }
-
-    private fun resortFew() {
-        val indices = list.indices.toArrayList()
-
-        while (!indices.isEmpty()) {
-            val i = indices.first()
-            val item = list.get(i)
-
-            list.recalculatePositionOfItemAt(i)
-
-            val newIndex = list.indexOf(item)
-
-            [suppress("USELESS_CAST_STATIC_ASSERT_IS_FINE")]
-            indices.remove(newIndex as Any) //cast to disambiguate remove()
-        }
-    }
-
-    override fun areContentsTheSame(oldItem: Data?, newItem: Data?) = oldItem == newItem
-
-    override fun areItemsTheSame(item1: Data?, item2: Data?) = item1 == item2
-
-    override fun compare(o1: Data?, o2: Data?) = comparator.compare(o1, o2)
-}
-
-val <T>SortedList<T>.indices: IntRange
-    get() = 0..size() - 1
-
-fun <T>SortedList<T>.toArrayList(): ArrayList<T> = indices.map { get(it) }.toArrayList()
-
-fun <T>SortedList<T>.batched(f: (SortedList<T>) -> Unit) {
-    beginBatchedUpdates()
-    f(this)
-    endBatchedUpdates()
-}
-
-fun <T> withListener(initial: T, callback: () -> Unit): ReadWriteProperty<Any, T> = object : ReadWriteProperty<Any, T> {
-    var value: T = initial
-
-    override fun get(thisRef: Any, desc: PropertyMetadata) = value
-
-    override fun set(thisRef: Any, desc: PropertyMetadata, value: T) {
-        this.value = value
-        callback()
-    }
-}
-
-fun Any.log(msg: Any?) {
-    Log.d(javaClass.getSimpleName(), msg?.toString() ?: "null")
-}

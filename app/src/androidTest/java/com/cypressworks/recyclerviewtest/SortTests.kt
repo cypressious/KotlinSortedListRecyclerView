@@ -5,15 +5,14 @@ import junit.framework.TestCase
 import java.util.Random
 import kotlin.properties.Delegates
 
-class ComparatorTest : TestCase() {
-
+abstract class AbstractSortTest : TestCase() {
     val random = Random()
     var callback: MyCallback by Delegates.notNull()
 
 
     override fun setUp() {
         val adapter = MyAdapter()
-        callback = MyCallback(adapter, compareBy { it.name })
+        callback = createCallback(adapter)
         val list = SortedList(javaClass<Data>(), callback)
 
         adapter.list = list
@@ -32,6 +31,11 @@ class ComparatorTest : TestCase() {
         }
     }
 
+    private fun createCallback(adapter: MyAdapter)
+            = MyCallback(adapter, compareBy { it.name }, createSortDelegate())
+
+    abstract fun createSortDelegate(): MyCallback.() -> Unit
+
     fun testCompareDate() {
         callback.comparator = compareByDescending<Data> { it.date }
     }
@@ -46,4 +50,15 @@ class ComparatorTest : TestCase() {
         callback.comparator = compareByDescending<Data> { it.date }
                 .thenBy { System.identityHashCode(it) }
     }
+}
+
+class SortByCopyTest : AbstractSortTest() {
+
+    override fun createSortDelegate(): MyCallback.() -> Unit = { resortByCopy() }
+}
+
+
+class SortUnderlyingTest : AbstractSortTest() {
+
+    override fun createSortDelegate(): MyCallback.() -> Unit = { resortUnderlying() }
 }
